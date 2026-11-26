@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Грузовой поток — бот ВК для учёта путёвок и рейтинга водителей.
-Ключ доступа берётся из переменной окружения TOKEN,
+Ключ доступа берётся из переменной окружения BOT_TOKEN (или TOKEN),
 ID админов — из переменной окружения ADMINS (через запятую).
 """
 
@@ -14,7 +14,7 @@ import threading
 import vk_api
 from vk_api.longpoll import VkBotLongPoll, VkEventType
 
-TOKEN = (os.environ.get("TOKEN") or "").strip()
+TOKEN = (os.environ.get("BOT_TOKEN") or os.environ.get("TOKEN") or "").strip()
 DATA_DIR = os.environ.get("DATA_DIR", "/app/data")
 GROUP_ID = int(os.environ.get("GROUP_ID") or 0)
 
@@ -70,7 +70,8 @@ def get_driver(db, user_id):
 
 def send(api, peer_id, text):
     try:
-        api.messages.send(peer_id=peer_id, message=text, random_id=random.randint(0, 2 ** 31))
+        api.messages.send(peer_id=peer_id, message=text,
+                          random_id=random.randint(0, 2 ** 31))
     except Exception as e:
         print("send error:", e)
 
@@ -80,10 +81,9 @@ def fmt_profile(d):
     if d["open_trip"]:
         trip = "\nОткрытая путёвка: выезд на {} км".format(d["open_trip"])
     return (
-        "Табельный номер: {} (@id{})\n"
         "Имя: {}\nАвто: {}\n"
         "Рейтинг: {}\nРейсов: {}\nВсего км: {}{}".format(
-            "", "", d["name"] or "не указано", d["truck"] or "не указано",
+            d["name"] or "не указано", d["truck"] or "не указано",
             d["rating"], d["trips"], d["total_km"], trip
         )
     )
@@ -91,7 +91,7 @@ def fmt_profile(d):
 
 def main():
     if not TOKEN:
-        print("ERROR: переменная окружения TOKEN не задана")
+        print("ERROR: переменная окружения BOT_TOKEN не задана")
         return
 
     session = vk_api.VkApi(token=TOKEN)
@@ -131,30 +131,35 @@ def main():
                     d["name"] = m.group(1)
                     if m.group(2):
                         d["truck"] = m.group(2)
-                    reply = "Анкета принята: {} / {}".format(d["name"], d["truck"] or "авто не указано")
+                    reply = "Анкета принята: {} / {}".format(
+                        d["name"], d["truck"] or "авто не указано")
                 else:
                     reply = "Формат: анкета Имя №ТС"
 
             elif re.match(r"^выписать\s+путевку\s+(\d+)", msg):
                 km = int(re.search(r"\d+", msg).group())
                 if d["open_trip"]:
-                    reply = "У вас уже открыта путёвка с {} км. Сначала закройте её: закрыть путевку <пробег>".format(d["open_trip"])
+                    reply = ("У вас уже открыта путёвка с {} км. "
+                             "Сначала закройте её: закрыть путевку <пробег>").format(d["open_trip"])
                 else:
                     d["open_trip"] = km
-                    reply = "Путёвка открыта. Выезд на {} км. Счастливого пути, {}!".format(km, d["name"] or "водитель")
+                    reply = "Путёвка открыта. Выезд на {} км. Счастливого пути, {}!".format(
+                        km, d["name"] or "водитель")
 
             elif re.match(r"^закрыть\s+путевку\s+(\d+)", msg):
                 km = int(re.search(r"\d+", msg).group())
                 if not d["open_trip"]:
                     reply = "Открытой путёвки нет. Сначала: выписать путевку <пробег>"
                 elif km < d["open_trip"]:
-                    reply = "Пробег на возврате ({}) меньше пробега на выезде ({}). Проверьте цифры.".format(km, d["open_trip"])
+                    reply = ("Пробег на возврате ({}) меньше пробега на выезде ({}). "
+                             "Проверьте цифры.").format(km, d["open_trip"])
                 else:
                     distance = km - d["open_trip"]
                     d["open_trip"] = None
                     d["total_km"] += distance
                     d["trips"] += 1
-                    reply = "Путёвка закрыта. Пройдено {} км. Всего: {} км, рейсов: {}".format(distance, d["total_km"], d["trips"])
+                    reply = ("Путёвка закрыта. Пройдено {} км. "
+                             "Всего: {} км, рейсов: {}").format(distance, d["total_km"], d["trips"])
 
             elif msg == "рейтинг":
                 drivers = [x for x in db["drivers"].values() if x["name"]]
@@ -164,7 +169,8 @@ def main():
                     drivers.sort(key=lambda x: (-x["rating"], -x["total_km"]))
                     lines = ["Рейтинг водителей:"]
                     for i, x in enumerate(drivers[:15], 1):
-                        lines.append("{}. {} — рейтинг {}, {} км".format(i, x["name"], x["rating"], x["total_km"]))
+                        lines.append("{}. {} — рейтинг {}, {} км".format(
+                            i, x["name"], x["rating"], x["total_km"]))
                     reply = "\n".join(lines)
 
             elif msg == "профиль":
