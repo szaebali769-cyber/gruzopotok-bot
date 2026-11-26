@@ -7,7 +7,8 @@ import sqlite3, re, random, threading, time, datetime
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-TOKEN = "vk1.a.dJP7Fr6bqByJ8DzvivBZsD2eYVgyCpmHphEwXREqSoYyhYWetIZqirygq1wMXT3LwE0_5NXMfIVF7ge2C6NCrGt1QVeZTHVGvw8ZzbuxQBX91HvlJF74smwRy-Oh47nB0vOUBK-GKyFz9QcYGIHErDBe459TneW0Gb2YbThlAmukaIWUN5ZDq4uCqUkvdtQINKCVdjlSGfFbuReRYha4DQ"
+import os
+TOKEN = os.environ.get("TOKEN", "")
 ADMINS = [deniskhomutov,suetologerende]          # VK id руководства
 
 PTS_TRIP     = 10     # баллы за закрытую путёвку
